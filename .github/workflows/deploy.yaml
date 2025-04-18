@@ -78,6 +78,11 @@ jobs:
           docker tag app:$IMAGE_TAG $ECR_REPO_APP:$IMAGE_TAG
           docker push $ECR_REPO_APP:$IMAGE_TAG
 
+      - name: Initialize Terraform
+        run: |
+          cd terraform
+          terraform init
+
       - name: Generate Terraform Plan
         run: |
           cd terraform
