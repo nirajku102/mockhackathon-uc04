@@ -147,40 +147,64 @@ resource "aws_security_group" "lambda_sg" {
   }
 }
 
-# API Gateway
-resource "aws_apigatewayv2_api" "users_api" {
-  name          = "UsersAPI"
-  protocol_type = "HTTP"
-  description   = "User management API"
+# API Gateway REST API
+resource "aws_api_gateway_rest_api" "users_api" {
+  name        = "UsersAPI"
+  description = "User management API"
 }
 
-# POST /users Route
-resource "aws_apigatewayv2_route" "create_user_route" {
-  api_id    = aws_apigatewayv2_api.users_api.id
-  route_key = "POST /users"
-  target    = "integrations/${aws_apigatewayv2_integration.user_integration.id}"
+# API Gateway Resource
+resource "aws_api_gateway_resource" "users_resource" {
+  rest_api_id = aws_api_gateway_rest_api.users_api.id
+  parent_id   = aws_api_gateway_rest_api.users_api.root_resource_id
+  path_part   = "users"
 }
 
-# GET /users Route
-resource "aws_apigatewayv2_route" "get_user_route" {
-  api_id    = aws_apigatewayv2_api.users_api.id
-  route_key = "GET /users"
-  target    = "integrations/${aws_apigatewayv2_integration.user_integration.id}"
+# POST Method
+resource "aws_api_gateway_method" "post_method" {
+  rest_api_id   = aws_api_gateway_rest_api.users_api.id
+  resource_id   = aws_api_gateway_resource.users_resource.id
+  http_method   = "POST"
+  authorization = "NONE"
 }
 
-# API Gateway Stage
-resource "aws_apigatewayv2_stage" "default_stage" {
-  api_id      = aws_apigatewayv2_api.users_api.id
-  name        = "$default"
-  auto_deploy = true
+# GET Method
+resource "aws_api_gateway_method" "get_method" {
+  rest_api_id   = aws_api_gateway_rest_api.users_api.id
+  resource_id   = aws_api_gateway_resource.users_resource.id
+  http_method   = "GET"
+  authorization = "NONE"
 }
 
-# API Gateway Integration
-resource "aws_apigatewayv2_integration" "user_integration" {
-  api_id             = aws_apigatewayv2_api.users_api.id
-  integration_type   = "AWS_PROXY"
-  integration_uri    = aws_lambda_function.user_lambda.invoke_arn
-  integration_method = "POST"
+# Integration for POST Method
+resource "aws_api_gateway_integration" "post_integration" {
+  rest_api_id = aws_api_gateway_rest_api.users_api.id
+  resource_id = aws_api_gateway_resource.users_resource.id
+  http_method = aws_api_gateway_method.post_method.http_method
+  type        = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri         = aws_lambda_function.user_lambda.invoke_arn
+}
+
+# Integration for GET Method
+resource "aws_api_gateway_integration" "get_integration" {
+  rest_api_id = aws_api_gateway_rest_api.users_api.id
+  resource_id = aws_api_gateway_resource.users_resource.id
+  http_method = aws_api_gateway_method.get_method.http_method
+  type        = "AWS_PROXY"
+  integration_http_method = "POST"
+  uri         = aws_lambda_function.user_lambda.invoke_arn
+}
+
+# Deployment
+resource "aws_api_gateway_deployment" "api_deployment" {
+  rest_api_id = aws_api_gateway_rest_api.users_api.id
+  stage_name  = "prod"
+  
+  depends_on = [
+    aws_api_gateway_integration.post_integration,
+    aws_api_gateway_integration.get_integration
+  ]
 }
 
 # Lambda Permission for API Gateway
@@ -189,5 +213,5 @@ resource "aws_lambda_permission" "apigw_permission" {
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.user_lambda.function_name
   principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.users_api.execution_arn}/*/*"
+  source_arn    = "${aws_api_gateway_rest_api.users_api.execution_arn}/*/*"
 }
