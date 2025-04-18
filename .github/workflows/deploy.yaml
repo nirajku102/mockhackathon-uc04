@@ -18,6 +18,15 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prevent CI Loop
+        run: |
+          if [[ "$(git log -1 --pretty=%an)" == "GitHub Actions" ]]; then
+            echo "Commit is from GitHub Actions. Exiting to prevent loop."
+            exit 0
+          fi
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -30,6 +39,24 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install Checkov
+        run: |
+          pip install checkov
+
+      - name: Run Checkov
+        run: |
+          cd terraform
+          checkov -d . --soft-fail
+
+      - name: Install TFLint
+        run: |
+          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
+      - name: Run TFLint
+        run: |
+          cd terraform
+          tflint
 
       # - name: Configure AWS credentials using OIDC
       #   uses: aws-actions/configure-aws-credentials@v3
@@ -51,6 +78,38 @@ jobs:
           docker tag app:$IMAGE_TAG $ECR_REPO_APP:$IMAGE_TAG
           docker push $ECR_REPO_APP:$IMAGE_TAG
 
+      - name: Generate Terraform Plan
+        run: |
+          cd terraform
+          terraform plan -var-file="dev.tfvars" -out=tfplan
+
+      - name: Save Terraform Plan File
+        run: |
+          cd terraform
+          terraform show -no-color tfplan > terraform-plan.md
+          rm -rf tfplan
+
+      - name: Read Terraform Plan File
+        id: read_plan
+        run: |
+          PLAN_CONTENT=$(cat terraform/terraform-plan.md)
+          echo "plan_content<<EOF" >> $GITHUB_ENV
+          echo "$PLAN_CONTENT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Create Pull Request to main
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: test
+          base: main
+          title: "Terraform Plan Reviews"
+          body: |
+            ## Terraform Plan
+            THE following changes are proposed by this Terraform plan:
+            ```diff
+            ${{ env.plan_content }}
+            ```
+
       - name: Run Terraform Apply with dev.tfvars and Image URIs
         run: |
           cd terraform
@@ -59,6 +118,6 @@ jobs:
             -var-file=dev.tfvars \
             -var="image_uri=$ECR_REPO_APP:$IMAGE_TAG"
 
-          terraform destroy -auto-approve \
-            -var-file=dev.tfvars \
-            -var="image_uri=$ECR_REPO_APP:$IMAGE_TAG"
+          # terraform destroy -auto-approve \
+          #   -var-file=dev.tfvars \
+          #   -var="image_uri=$ECR_REPO_APP:$IMAGE_TAG"
