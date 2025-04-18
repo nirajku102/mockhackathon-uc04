@@ -19,7 +19,7 @@ jobs:
       contents: write
       id-token: write
       pull-requests: write
-      
+
 # jobs:
 #   terraform-apply:
 #     runs-on: ubuntu-latest
@@ -126,13 +126,13 @@ jobs:
             ${{ env.plan_content }}
             ```
 
-      # - name: Run Terraform Apply with dev.tfvars and Image URIs
-      #   run: |
-      #     cd terraform
-      #     terraform init
-      #     terraform apply -auto-approve \
-      #       -var-file=dev.tfvars \
-      #       -var="image_uri=$ECR_REPO_APP:$IMAGE_TAG"
+      - name: Run Terraform Apply with dev.tfvars and Image URIs
+        run: |
+          cd terraform
+          terraform init
+          terraform apply -auto-approve \
+            -var-file=dev.tfvars \
+            -var="image_uri=$ECR_REPO_APP:$IMAGE_TAG"
 
           # terraform destroy -auto-approve \
           #   -var-file=dev.tfvars \
