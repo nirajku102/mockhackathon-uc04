@@ -24,18 +24,18 @@ jobs:
         with:
           terraform_version: latest
 
-      # - name: Configure AWS credentials
-      #   uses: aws-actions/configure-aws-credentials@v3
-      #   with:
-      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Configure AWS credentials using OIDC
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v3
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
-          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # - name: Configure AWS credentials using OIDC
+      #   uses: aws-actions/configure-aws-credentials@v3
+      #   with:
+      #     role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role
+      #     aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -59,6 +59,6 @@ jobs:
             -var-file=dev.tfvars \
             -var="image_uri=$ECR_REPO_APP:$IMAGE_TAG"
 
-          # terraform destroy -auto-approve \
-          #   -var-file=dev.tfvars \
-          #   -var="image_uri=$ECR_REPO_APP:$IMAGE_TAG"
+          terraform destroy -auto-approve \
+            -var-file=dev.tfvars \
+            -var="image_uri=$ECR_REPO_APP:$IMAGE_TAG"
