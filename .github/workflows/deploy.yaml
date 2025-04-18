@@ -86,7 +86,9 @@ jobs:
       - name: Generate Terraform Plan
         run: |
           cd terraform
-          terraform plan -var-file="dev.tfvars" -out=tfplan
+          terraform plan -var-file=dev.tfvars \
+          -var="image_uri=$ECR_REPO_APP:$IMAGE_TAG" -out=tfplan
+              
 
       - name: Save Terraform Plan File
         run: |
